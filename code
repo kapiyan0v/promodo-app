@@ -1,0 +1,182 @@
+import UIKit
+
+class Task {
+    var name: String
+    var duration: Int
+
+    init(name: String, duration: Int) {
+        self.name = name
+        self.duration = duration
+    }
+}
+
+class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDelegate {
+
+    var taskList: [Task] = []
+    var taskLabel: UILabel!
+    var startPauseButton: UIButton!
+    var minutesPicker: UIPickerView!
+    var timerLabel: UILabel!
+    var taskTextField: UITextField!
+
+    var timer = Timer()
+    var isTimerRunning = false
+    var totalTime = 1500
+    var secondsPassed = 0
+    var selectedMinutes = 25
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        setupUI()
+        setupPickerView()
+    }
+
+    func setupUI() {
+      
+        let stackView = UIStackView()
+        stackView.axis = .vertical
+        stackView.spacing = 16
+        stackView.alignment = .center
+
+        taskTextField = UITextField()
+        taskTextField.placeholder = "Введите задачу"
+        stackView.addArrangedSubview(taskTextField)
+
+        taskLabel = UILabel()
+        taskLabel.font = UIFont.boldSystemFont(ofSize: 20)
+        stackView.addArrangedSubview(taskLabel)
+
+        minutesPicker = UIPickerView()
+        minutesPicker.dataSource = self
+        minutesPicker.delegate = self
+        stackView.addArrangedSubview(minutesPicker)
+
+        timerLabel = UILabel()
+        timerLabel.font = UIFont.systemFont(ofSize: 40)
+        stackView.addArrangedSubview(timerLabel)
+
+        startPauseButton = UIButton(type: .system)
+        startPauseButton.setTitle("Start", for: .normal)
+        startPauseButton.addTarget(self, action: #selector(startPauseButtonTapped), for: .touchUpInside)
+        stackView.addArrangedSubview(startPauseButton)
+
+        view.addSubview(stackView)
+
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            stackView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+        ])
+    }
+
+    func setupPickerView() {
+ 
+    }
+
+    @objc func startPauseButtonTapped() {
+        if isTimerRunning {
+            pauseTimer()
+        } else {
+            startTimer()
+        }
+    }
+
+    func startTimer() {
+        if !isTimerRunning {
+            guard let taskName = taskTextField.text, !taskName.isEmpty else {
+                showAlert(message: "Введите задачу перед началом таймера.")
+                return
+            }
+
+            taskTextField.isHidden = true
+            minutesPicker.isHidden = true
+            taskLabel.text = "Текущая задача: \(taskName)"
+
+            totalTime = selectedMinutes * 60
+            secondsPassed = 0
+            updateUI()
+
+            timer = Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(updateTimer), userInfo: nil, repeats: true)
+            isTimerRunning = true
+            startPauseButton.setTitle("Pause", for: .normal)
+        }
+    }
+
+    func pauseTimer() {
+        timer.invalidate()
+        isTimerRunning = false
+        startPauseButton.setTitle("Resume", for: .normal)
+
+        if secondsPassed < totalTime {
+            showBreakTimer()
+        }
+    }
+
+    func resetTimer() {
+        timer.invalidate()
+        isTimerRunning = false
+        secondsPassed = 0
+        startTimer()
+    }
+
+    func showBreakTimer() {
+        let breakTime = 300
+        let alertController = UIAlertController(title: "Take a Break!", message: "It's time for a 5-minute break.", preferredStyle: .alert)
+        let okAction = UIAlertAction(title: "Start Break", style: .default) { _ in
+            self.totalTime = breakTime
+            self.startTimer()
+        }
+        alertController.addAction(okAction)
+        present(alertController, animated: true, completion: nil)
+    }
+
+    @objc func updateTimer() {
+        if secondsPassed < totalTime {
+            secondsPassed += 1
+            updateUI()
+        } else {
+            resetTimer()
+            showBreakTimer()
+        }
+    }
+
+    func updateUI() {
+        timerLabel.text = timeFormat(time: totalTime - secondsPassed)
+    }
+
+    func showAlert(message: String) {
+        let alertController = UIAlertController(title: "Внимание", message: message, preferredStyle: .alert)
+        let okAction = UIAlertAction(title: "OK", style: .default, handler: nil)
+        alertController.addAction(okAction)
+        present(alertController, animated: true, completion: nil)
+    }
+
+   
+
+    func numberOfComponents(in pickerView: UIPickerView) -> Int {
+        return 1
+    }
+
+    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+        return 60
+    }
+
+   
+
+    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+        return "\(row + 1) минут"
+    }
+
+    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+        selectedMinutes = row + 1
+        totalTime = selectedMinutes * 60
+    }
+
+    func timeFormat(time: Int) -> String {
+        let minutes = time / 60
+        let seconds = time % 60
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
+}
